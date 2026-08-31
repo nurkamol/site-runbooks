@@ -26,19 +26,34 @@ report is more trustworthy when it says so.
 Some checks will not apply: not every project has a media manifest, a CMS, or
 client documentation. Say so and move on rather than forcing it.
 
-**Adapt every one of these to the project in front of you, and sanity-check it
-before you believe it.** Three of the eight below were wrong the first time I
-wrote them — two over-reported on a project whose true answer was zero, and one
-printed nothing whether or not the problem existed. Each is now annotated with
-what it excludes and why. A check you have not seen produce both answers is not
-yet a check.
+### Run the detection, do not re-derive it
 
-### D1 · Does the pipeline emit a modern format?
+All eight checks below are implemented in **`check-drift.mjs`**, which ships with
+the template. It is read-only, exits 0 whatever it finds, and prints a table —
+`--json` for several sites at once:
 
 ```bash
-grep -n "avif\|AVIF" scripts/optimize-media.mjs 2>/dev/null | head -3
-node -e "const s=require('sharp');console.log('avif writable:', !!s.format.heif?.output)" 2>/dev/null
+npm run check:drift
 ```
+
+If the project predates the script, copy `scripts/check-drift.mjs` and
+`scripts/lib/` in from a current template and run it there.
+
+⚠ **The bash that used to sit under each heading has been removed on purpose.**
+It was a second implementation of the same eight checks, free to disagree with
+the first — which is the exact failure this repository exists to describe. The
+script is where *how* lives; the sections below are where *what it means* lives,
+and that is the half no script can carry.
+
+**Three of the eight were wrong when first written**, and every one looked
+authoritative: one matched every `name="…"` attribute and returned fifteen
+false positives against a true answer of zero, one flagged alt-text fields
+which are correctly strings, and one printed nothing whether or not the problem
+existed. They are fixed in the script and pinned by its test cases — but the
+lesson generalises to anything you add: **a check you have not watched produce
+both answers is not yet a check.**
+
+### D1 · Does the pipeline emit a modern format?
 
 Missing AVIF while the encoder supports it is the highest-value, lowest-risk
 finding you will get. **Measure it before reporting it** — the saving depends
@@ -59,13 +74,6 @@ PY
 
 ### D2 · Source files your tools cannot read
 
-```bash
-GLOBS=('*.mjs' '*.js' '*.ts' '*.astro' '*.css' '*.md')
-comm -23 \
-  <(git ls-files -- "${GLOBS[@]}" | sort) \
-  <(git grep -I -l '' -- "${GLOBS[@]}" | sort)
-```
-
 Anything printed contains bytes that make git and grep classify it as binary.
 That file is invisible to code review, to `grep`, and to any provenance or
 secret-scanning gate that uses `grep -I`.
@@ -78,31 +86,6 @@ before trusting it.
 ### D3 · CMS image fields that are not pickers
 
 Skip if there is no `.pages.yml`.
-
-```bash
-python3 - <<'PY'
-import yaml, json, pathlib
-cfg = yaml.safe_load(open('.pages.yml'))
-def flat(i):
-    for it in i:
-        if it.get('type')=='group': yield from flat(it.get('items',[]))
-        else: yield it
-def walk(fs, trail, out):
-    for f in fs or []:
-        n=f"{trail}.{f['name']}"
-        low = f['name'].lower()
-        looks = any(k in low for k in ('image','photo','glyph','badge','picture'))
-        # only `string` — an `object` here is a wrapper holding the real field,
-        # and a name ending "alt" is a description that SHOULD be text
-        if looks and not low.endswith('alt') and f.get('type')=='string':
-            out.append((n, f.get('type')))
-        walk(f.get('fields'), n, out)
-out=[]
-for e in flat(cfg['content']):
-    if e.get('type')=='file': walk(e.get('fields'), e['name'], out)
-print("image-ish fields that are NOT type: image →", out or "none")
-PY
-```
 
 A field named `image` typed `string` is a text box asking a non-technical
 person to type a filename from memory. That is not an editable field.
@@ -119,45 +102,11 @@ before the pickers were added.
 The one that renders perfectly and is completely broken. Skip if no
 `.pages.yml`.
 
-```bash
-python3 - <<'PY'
-import yaml, json, pathlib, os
-cfg = yaml.safe_load(open('.pages.yml'))
-srcs = {m.get('name','default'): m for m in (cfg['media'] if isinstance(cfg['media'],list) else [cfg['media']])}
-def flat(i):
-    for it in i:
-        if it.get('type')=='group': yield from flat(it.get('items',[]))
-        else: yield it
-bad=[]
-def walk(fs, data, trail):
-    for f in fs or []:
-        if not data or f['name'] not in data: continue
-        v=data[f['name']]; at=f"{trail}.{f['name']}"
-        if f.get('type')=='image':
-            m=srcs.get((f.get('options') or {}).get('media','default'))
-            for one in (v if isinstance(v,list) else [v]):
-                if not one: continue
-                if not one.startswith(m['output']): bad.append((at,one,'not a path under '+m['output']))
-                elif not os.path.exists(one.replace(m['output'],m['input'],1)): bad.append((at,one,'file missing'))
-        elif f.get('type')=='object':
-            for item in (v if isinstance(v,list) else [v]):
-                if isinstance(item,dict): walk(f.get('fields'), item, at)
-for e in flat(cfg['content']):
-    if e.get('type')=='file': walk(e.get('fields'), json.load(open(e['path'])), e['name'])
-print("unusable image values →", bad or "none")
-PY
-```
-
 **Report this one carefully.** The site will build, type-check, pass
 accessibility and render byte-identically while every picker is broken. If you
 tell them "everything passes", you will be wrong in the one place they can see.
 
 ### D5 · Images the page shows and the CMS cannot touch
-
-```bash
-grep -rnoE '(name|image|poster)="[a-z0-9][a-z0-9._-]*/[a-z0-9][^"]*"' \
-  src/pages src/layouts src/components 2>/dev/null
-```
 
 **The slash is doing the work.** My first version matched any `name="..."` and
 returned form fields, icon names and `<meta name="viewport">` — fifteen hits on
@@ -174,10 +123,6 @@ the reverse — content in a CMS-backed data file with no field declared for it.
 
 ### D6 · Does the pipeline say what it ignored?
 
-```bash
-grep -n "RASTER\|files.filter" scripts/optimize-media.mjs 2>/dev/null | head -5
-```
-
 If the file list is filtered before the loop, unrecognised files are dropped
 in silence. Test it rather than reading it: drop a `.heic`, a `.gif`, a `.txt`
 and a deliberately corrupt `.jpg` into the source folder, run the pipeline, and
@@ -189,32 +134,12 @@ regex rather than by any real limitation.
 
 ### D7 · Text sitting on photographs, unguarded
 
-```bash
-grep -rln "scrim\|gradient" src/components src/pages 2>/dev/null | head
-ls scripts/check-contrast.mjs 2>/dev/null || echo "no contrast guard"
-```
-
 If any nav bar, caption or tile label sits over an image, and there is no
 build-time contrast check, then nothing in the project can see that failure —
 axe and pa11y both report a flat ~1.01:1 for text over a photograph because no
 runner composites a transparent element over an image.
 
 ### D8 · Is the client's guide still true?
-
-```bash
-python3 - <<'PY'
-import yaml, pathlib, glob
-g = next((p for p in glob.glob('docs/*edit*.md')+glob.glob('docs/*client*.md')), None)
-if not g: print("no client guide found"); raise SystemExit
-cfg = yaml.safe_load(open('.pages.yml')); txt = pathlib.Path(g).read_text()
-def flat(i):
-    for it in i:
-        if it.get('type')=='group': yield it['label']; yield from flat(it.get('items',[]))
-        else: yield it['label']
-missing=[l for l in flat(cfg['content']) if l not in txt]
-print(f"{g}: labels absent from the guide →", missing or "none")
-PY
-```
 
 Expect near-misses rather than exact matches: a guide that shortens an entry
 labelled "Courses (teacher training)" to just "Courses" is fine. **Read the
