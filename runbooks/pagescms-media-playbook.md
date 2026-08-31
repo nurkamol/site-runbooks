@@ -12,6 +12,31 @@ it happened.
 
 ---
 
+## Run the checks first, they are already written
+
+Sections 0–5 and 7 below are implemented in the website-build-kit template and tested there:
+
+| Section | Check |
+| --- | --- |
+| 0 · what is unreachable · 1 · picker paths · 2 · upload direction · 3 · formats at the door · 7 · guide drift | `npm run check:cms` |
+| 4 · pipeline says what it ignored | `npm run media` |
+| 5 · text over photographs | `npm run check:contrast` |
+
+⚠ **They run against a project that has none of them.** Every path resolves from the working
+directory, so a clone of the kit audits a site in place — no files copied into a client's
+repository, and the checks are the current ones rather than a copy that has itself gone stale:
+
+```bash
+cd path/to/the-site
+node path/to/website-build-kit/template/scripts/check-cms.mjs
+```
+
+Verified on a shipped site carrying none of those scripts: every check ran and `git status`
+reported zero changed files.
+
+**What is below is what the checks cannot decide** — what a finding means, what to fix first on a
+live site, and section 6, which no check can see at all.
+
 ## 0. First, find out what is actually unreachable
 
 Do this before deciding anything. Almost every project has more hardcoded

@@ -22,19 +22,39 @@ opening a page, seeing their own words, and having nowhere to change them.
 
 ## Phase 1 — Audit. Change nothing.
 
+### Run it, do not re-derive it
+
+`check-cms.mjs` in the website-build-kit template already detects A1, A2 and A3 — content living
+in code, data files with no form behind them, and keys inside a declared file with no field. It is
+read-only.
+
+```bash
+npm run check:cms
+```
+
+⚠ **It runs against any project, including one built before it existed.** Every path it resolves
+is relative to the working directory, so a clone of the kit can audit a site in place:
+
+```bash
+cd path/to/the-site
+node path/to/website-build-kit/template/scripts/check-cms.mjs
+```
+
+Verified on a shipped site carrying none of those scripts: it ran and `git status` reported zero
+changed files. You are not committing tooling to a client's repository in order to read it.
+
+⚠ **The bash that used to sit under A1–A3 is gone on purpose.** It was a second implementation of
+checks the kit already ships and tests, free to disagree with the first — the failure this
+repository exists to describe. The sections below say what each finding *means* and what to do,
+which is the half no script carries. **A4 has no check and cannot have one**: whether a sidebar is
+organised or merely a list is a judgement.
+
 ### A1 · Content that lives in code
 
 PagesCMS edits YAML, JSON and markdown. **It cannot structure-edit TypeScript.**
 Any copy in a `.ts` file — or worse, in a component's frontmatter — is
 invisible to it.
 
-```bash
-# data modules that are code, not content
-ls src/data/*.ts 2>/dev/null
-
-# copy declared inside pages themselves — the ones people forget
-grep -rn "^const .* = \[$\|^const .* = '" src/pages/*.astro src/pages/**/*.astro 2>/dev/null | head -20
-```
 
 Separate what you find into three piles, and be honest about the third:
 
@@ -44,13 +64,6 @@ Separate what you find into three piles, and be honest about the third:
   should fail a build rather than ship
 - **dead** — imported by nothing. Check before assuming:
 
-```bash
-for f in src/data/*.ts; do
-  n=$(basename "$f" .ts)
-  c=$(grep -rl "data/$n'" src --include='*.astro' --include='*.ts' | grep -v "^src/data/" | wc -l)
-  [ "$c" -eq 0 ] && echo "  DEAD: $f"
-done
-```
 
 **Do not wire dead files into the CMS.** A form that edits a file nothing reads
 is worse than no form — it invites someone to spend an afternoon rewording a
@@ -60,22 +73,6 @@ page that will never change. Report them; deleting is a separate decision.
 
 The reverse of A1, and the one that will catch you:
 
-```bash
-# every CMS-backed data file that .pages.yml never mentions
-python3 - <<'PY'
-import yaml, glob, os
-cfg = yaml.safe_load(open('.pages.yml'))
-def flat(i):
-    for it in i:
-        if it.get('type')=='group': yield from flat(it.get('items',[]))
-        else: yield it
-declared = {e['path'] for e in flat(cfg['content']) if e.get('type')=='file'}
-IGNORE = {'image-manifest.json','lastmod.json'}   # generated, not content
-orphans = [f for f in glob.glob('src/data/*.json')
-           if os.path.basename(f) not in IGNORE and f not in declared]
-print("data files with no CMS entry →", orphans or "none")
-PY
-```
 
 I added this check only after it caught me: a data file was created, wired into
 its page, and its `.pages.yml` entry silently failed to apply. The page
@@ -85,30 +82,6 @@ config never mentions.
 
 ### A3 · Keys inside a declared file with no field
 
-```bash
-python3 - <<'PY'
-import yaml, json
-cfg = yaml.safe_load(open('.pages.yml'))
-def flat(i):
-    for it in i:
-        if it.get('type')=='group': yield from flat(it.get('items',[]))
-        else: yield it
-bad=[]
-def walk(node, data, trail):
-    declared={f['name']:f for f in (node.get('fields') or [])}
-    if isinstance(data, dict):
-        for k in data:
-            if k not in declared: bad.append(f"{trail}.{k}")
-        for n,f in declared.items():
-            if n in data and f.get('type')=='object':
-                v=data[n]
-                for item in (v if isinstance(v,list) else [v]):
-                    if isinstance(item,dict): walk(f, item, f"{trail}.{n}")
-for e in flat(cfg['content']):
-    if e.get('type')=='file': walk(e, json.load(open(e['path'])), e['name'])
-print("keys with no field →", bad or "none")
-PY
-```
 
 ### A4 · Is it organised, or is it a list?
 
