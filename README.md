@@ -33,14 +33,8 @@ git clone https://github.com/nurkamol/site-runbooks.git
 cd site-runbooks && ./install.sh
 ```
 
-That does three things: symlinks `skill/` into your Claude skills directory so
-`site-runbooks` is available in every project without attaching a file; enables
-the pre-commit guard; and seeds the denylist outside the repo.
-
-**Run it on every clone.** `core.hooksPath` lives in `.git/config`, which git
-does not clone — so a fresh clone of this repository has no guard at all until
-`install.sh` runs. That was verified by cloning it and successfully committing
-a client name. A guard sitting in the tree is not a guard that is installed.
+That symlinks `skill/` into your Claude skills directory, so `site-runbooks` is
+available in every project without attaching a file.
 
 The skill is linked rather than copied on purpose: a copied skill is a second
 vintage of the same instructions, which is the failure these runbooks are
@@ -91,22 +85,23 @@ fault. Every check is now annotated with what it excludes and why.
 
 > **A check you have not watched fail is not yet a check.**
 
-**No client data, and the denylist is not in here either.** A pre-commit hook
-blocks machine paths, email addresses, phone numbers and credential shapes.
-Client-specific names come from a file outside the repository
-(`~/.config/site-runbooks/denylist.txt`), because a public repo containing a
-list of your clients has leaked them regardless of what it does with the list.
+**No client data, and no scanner pretending to guarantee it.** These runbooks
+describe one production site and quote real measurements from it. The
+measurements stay — they are what make the advice credible, and they identify
+nobody. Every file here is read before it is published.
 
-That is not a hypothetical distinction. The first version of that script held
-the names in plaintext, each labelled `# client`, `# person`, `# place` — and
-it excluded itself from its own scan, necessarily, since its patterns would
-always match themselves. **The one file whose job was to prevent exposure was
-the only file that caused it, and it was structurally invisible to every check
-including its own.** It reached a public repository before anyone noticed.
+There was briefly a scrubbing script instead. It listed the names it was
+looking for in plaintext, and it had to exclude itself from its own scan, since
+its patterns would otherwise always match themselves — so **the one file whose
+job was to prevent exposure was the only file that could cause it, and it was
+structurally invisible to every check including its own.** Its lifetime score
+was zero catches and four distinct bugs. Both real finds came from someone
+reading a file.
 
-The script now contains no names, so it no longer needs the exemption, so it
-gets scanned like everything else. The measurements stay — they are what makes
-the advice credible and they identify nobody.
+It has been removed rather than repaired, because its worst property was not
+the bugs. It was that having it made publishing without reading feel safe.
+
+> **A check nobody is able to watch fail is worse than no check at all.**
 
 ---
 

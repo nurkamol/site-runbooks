@@ -274,8 +274,9 @@ Being out of date is the mild half. The serious half is what it said:
     the business address and phone number ... are not editable
 
 which had been true and then wasn't. A client reading that either asks you to
-do something she can do herself, or — much worse — assumes her address updates
-everywhere on its own, because your document told her the site owns it.
+do something they can do themselves, or — much worse — assumes their address
+updates everywhere on its own, because your document told them the site owns
+it.
 
 **A CMS guide does not decay gracefully. It goes from helpful to actively
 wrong, and the client is the only one who finds out.**
