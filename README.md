@@ -33,11 +33,18 @@ git clone https://github.com/nurkamol/site-runbooks.git
 cd site-runbooks && ./install.sh
 ```
 
-That symlinks `skill/` into your Claude skills directory, so `site-runbooks`
-becomes available in every project without attaching a file. It links rather
-than copies on purpose: a copied skill is a second vintage of the same
-instructions, which is the failure these runbooks are about. `git pull` here
-updates it everywhere.
+That does three things: symlinks `skill/` into your Claude skills directory so
+`site-runbooks` is available in every project without attaching a file; enables
+the pre-commit guard; and seeds the denylist outside the repo.
+
+**Run it on every clone.** `core.hooksPath` lives in `.git/config`, which git
+does not clone — so a fresh clone of this repository has no guard at all until
+`install.sh` runs. That was verified by cloning it and successfully committing
+a client name. A guard sitting in the tree is not a guard that is installed.
+
+The skill is linked rather than copied on purpose: a copied skill is a second
+vintage of the same instructions, which is the failure these runbooks are
+about. `git pull` here updates it everywhere.
 
 ---
 

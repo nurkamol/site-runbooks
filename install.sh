@@ -24,3 +24,25 @@ fi
 ln -s "$REPO/skill" "$DEST"
 echo "✓ linked $DEST → $REPO/skill"
 echo "  The skill now tracks this repo. Pull here and it updates everywhere."
+
+# ── AND THE HOOK, WHICH A CLONE DOES NOT BRING WITH IT ────────────────────
+# core.hooksPath lives in .git/config, and .git/config is not cloned. So a
+# fresh clone of this repository has NO pre-commit guard at all until this
+# runs — verified by cloning it and successfully committing a client name.
+#
+# The guard being in the tree is not the same as the guard being installed.
+git -C "$REPO" config core.hooksPath .githooks
+echo "✓ pre-commit guard enabled (core.hooksPath → .githooks)"
+
+DENYLIST="${SITE_RUNBOOKS_DENYLIST:-$HOME/.config/site-runbooks/denylist.txt}"
+if [ ! -f "$DENYLIST" ]; then
+  mkdir -p "$(dirname "$DENYLIST")"
+  cat > "$DENYLIST" <<'SEED'
+# Client-identifying names. NEVER committed — this file lives outside any repo.
+# One lowercase regex per line. Add a name the day a client's work informs a
+# runbook, not later.
+SEED
+  echo "✓ created $DENYLIST — add your client names to it"
+else
+  echo "✓ denylist already at $DENYLIST"
+fi
