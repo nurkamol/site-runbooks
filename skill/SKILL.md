@@ -1,6 +1,6 @@
 ---
 name: site-runbooks
-description: Audit and repair a Git-backed CMS site after it has shipped — content the CMS cannot reach, image fields that are text boxes rather than pickers, stored values the CMS cannot resolve, an image pipeline that discards uploads silently, text over photographs with no contrast guard, or a client editing guide that has drifted from the CMS it describes. Use when someone says a client cannot change something on their own site, when a site was built from an older template and its state is unknown, or before wiring a CMS on a new build. Routes to the runbooks in the site-runbooks repository.
+description: Organise the repair of a Git-backed CMS once its problems are already known — grouping fields so a non-developer can navigate them, deciding what belongs in a CMS at all, and migrating stored values in bulk across a collection. Also the design stances worth taking before wiring a CMS on a new build. Use when an audit has produced findings and the question is how to structure the repair rather than what is wrong. Detection lives in the website-build-kit's `site-repair` skill, which runs the checks these runbooks call.
 ---
 
 # Site runbooks
@@ -20,6 +20,15 @@ at `github.com/nurkamol/site-runbooks`. It routes to those runbooks and
 deliberately does not restate what they contain — two copies of a check drift,
 and the entire point of that repository is that they do not.
 
+## Detection is not here
+
+⚠ **Run the checks first, and they live in the kit.** `check-drift.mjs` and
+`check-cms.mjs` in website-build-kit are gated, mutation-tested and shipped
+into every project; these runbooks call them rather than restating what they
+find. The `site-repair` skill runs them and reports.
+
+Come here once there are findings and the question is what to do about them.
+
 ## Pick one
 
 Read `how-to-run.md` in the repository first if the situation is unclear.
@@ -27,8 +36,8 @@ Otherwise:
 
 | Situation | Runbook |
 | --- | --- |
-| A client cannot edit something they can see | `runbooks/pagescms-field-mapping.md` |
-| Site is old, state unknown, built from a template | `runbooks/kit-drift-remediation.md` |
+| Findings exist; the CMS needs restructuring so a client can navigate it | `runbooks/pagescms-field-mapping.md` |
+| Findings exist across the pipeline, the CMS and the client's guide | `runbooks/kit-drift-remediation.md` |
 | Building something new, want to avoid all of it | `runbooks/pagescms-media-playbook.md` |
 
 Read the chosen file in full and follow it. They are written to be executed.
